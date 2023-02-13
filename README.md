@@ -14,7 +14,7 @@ ActualVerifier<int, int> {}
     .insert(key = 0, value = 1)
     .size(expectedSize = 1)
     .insert(value = 4, key = 0, result = false)
-    .size(result = 1)                              // Yep, an alias for `expectedSize`
+    .size(expectedSize = 1)
     // ...
 ```
 
