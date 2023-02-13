@@ -6,6 +6,8 @@
 #include "Newtype.hpp"
 
 
+// `Kwarg<T, Tag>` is a type that acts very much like `Newtype<T, Tag>` but also allows assignment.
+// This makes function calls like `f(key = 0, value = 1)` possible, where `key` and `value` are `Kwarg`s.
 template <typename T, typename Tag>
 struct Kwarg : Newtype<T, Tag> {
     template <typename... Ts>
@@ -20,8 +22,9 @@ struct Kwarg : Newtype<T, Tag> {
         }
     };
 
-    template <typename U, typename Uag>
-    operator Kwarg<U, Uag>() const {
-        return Kwarg<U, Uag> { this->value };
+    // This is a little sus. Might remove.
+    template <typename U, typename UTag>
+    operator Kwarg<U, UTag>() const {
+        return Kwarg<U, UTag> { this->value };
     }
 };
