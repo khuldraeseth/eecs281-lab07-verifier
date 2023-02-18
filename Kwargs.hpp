@@ -1,6 +1,7 @@
 #pragma once
 
 
+#include <initializer_list>
 #include <utility>
 
 #include "Newtype.hpp"
@@ -18,7 +19,13 @@ struct Kwarg : Newtype<T, Tag> {
         template <typename U>
         // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature)
         auto operator=(U&& value) const -> Kwarg {
-            return Kwarg<U, Tag> { std::forward<U>(value) };
+            return Kwarg<T, Tag> { std::forward<T>(value) };
+        }
+
+        template <typename U>
+        // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature)
+        auto operator=(std::initializer_list<U> value) const -> Kwarg {
+            return *this = T(value.begin(), value.end());
         }
     };
 
