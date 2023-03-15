@@ -4,12 +4,18 @@
 #include <cstddef>
 #include <functional>
 #include <iostream>
+#include <tuple>
 #include <type_traits>
 
 #include "../hashtable.hpp"
+#include "EqualityChecker.hpp"
 #include "Kwargs.hpp"
+#include "NotEqualityChecker.hpp"
+#include "NotProbeSequenceVerifier.hpp"
 #include "NotifyingKey.hpp"
+#include "ProbeListener.hpp"
 #include "ProbeSequenceVerifier.hpp"
+#include "TypeTraits.hpp"
 #include "Verifier.hpp"
 
 
@@ -56,41 +62,26 @@ class ActualVerifier {
     HashTable<NotifyingKey<K>, V, NotifyingKeyHash<K, H>> table {};
 
 public:
-    using ExpectedSize = Kwarg<std::size_t, struct ExpectedSizeTag>;
     using Key = Kwarg<K, struct KeyTag>;
     using Value = Kwarg<V, struct ValueTag>;
+    using ExpectedSize = Kwarg<std::size_t, struct ExpectedSizeTag>;
     using ProbeSequence = Kwarg<std::vector<std::size_t>, struct ProbeSequenceTag>;
+    using InsertResult = Kwarg<bool, struct InsertResultTag>;
 
-    auto size(ExpectedSize expected) const -> ActualVerifier const& {
-        auto const numBuckets = Verifier::buckets(table).size();
-        if (expected > numBuckets) {
-            std::cerr << "Expected size " << expected << " is greater than number of buckets " << numBuckets
-                      << std::endl;
-            throw std::runtime_error("size");
-        }
-
-        auto const actual = table.size();
-        if (actual != expected) {
-            std::cerr << "Expected size " << expected << ", got " << actual << std::endl;
-            throw std::runtime_error("size");
-        }
-
-        return *this;
+    template <typename... Args>
+    auto size(Args&&... args) const -> ActualVerifier const& {
+        return sizeImpl(std::make_tuple(std::forward<Args>(args)...));
     }
 
-    auto size(ExpectedSize expected) -> ActualVerifier& {
+    template <typename... Args>
+    auto size(Args&&... args) -> ActualVerifier& {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-        return const_cast<ActualVerifier&>(const_cast<ActualVerifier const&>(*this).size(expected));
+        return const_cast<ActualVerifier&>(const_cast<ActualVerifier const&>(*this).size(std::forward<Args>(args)...));
     }
 
-    auto insert(Key key, Value value, ProbeSequence probeSequence) -> ActualVerifier& {
-#pragma message "TODO: implement insert"
-        std::cout << "Insert called" << std::endl;
-        ProbeSequenceVerifier<K, V, H> psv(table, probeSequence);
-        NotifyingKey<K> notifyingKey { psv, key };
-        static_cast<void>(table.insert(notifyingKey, value));
-        psv.finalize();
-        return *this;
+    template <typename... Args>
+    auto insert(Args&&... args) -> ActualVerifier& {
+        return insertImpl(std::make_tuple(std::forward<Args>(args)...));
     }
 
     auto erase(Key key, ProbeSequence probeSequence) -> ActualVerifier& {
@@ -110,6 +101,74 @@ public:
         NotifyingKey<K> notifyingKey { psv, key };
         static_cast<void>(table[notifyingKey]);
         psv.finalize();
+        return *this;
+    }
+
+private:
+    template <typename... Args>
+    auto sizeImpl(std::tuple<Args...> args) const -> ActualVerifier const& {
+        static_assert(count<ExpectedSize, Args...> > 0, "Error: size requires an expected size");
+        static_assert(count<ExpectedSize, Args...> < 2, "Error: size allows no more than expected size");
+
+        auto const expected = std::get<ExpectedSize>(args).value;
+
+        auto const numBuckets = Verifier::buckets(table).size();
+        if (expected > numBuckets) {
+            std::cerr << "Expected size " << expected << " is greater than number of buckets " << numBuckets
+                      << std::endl;
+            throw std::runtime_error("size");
+        }
+
+        auto const actual = table.size();
+        if (actual != expected) {
+            std::cerr << "Expected size " << expected << ", got " << actual << std::endl;
+            throw std::runtime_error("size");
+        }
+
+        return *this;
+    }
+
+    template <typename... Args>
+    auto insertImpl(std::tuple<Args...> args) -> ActualVerifier& {
+        if constexpr (count<ProbeSequence, Args...> != 0) {
+            static_assert(count<ProbeSequence, Args...> < 2, "Error: insert allows no more than one probe sequence");
+            auto psv = ProbeSequenceVerifier<K, V, H>(table, std::get<ProbeSequence>(args).value);
+            return insertImpl(psv, args);
+        } else {
+            auto npsv = NotProbeSequenceVerifier<K> {};
+            return insertImpl(npsv, args);
+        }
+    }
+
+    template <typename... Args>
+    auto insertImpl(ProbeListener<K>& listener, std::tuple<Args...> args) -> ActualVerifier& {
+        if constexpr (count<InsertResult, Args...> != 0) {
+            static_assert(count<InsertResult, Args...> < 2, "Error: insert allows no more than one insert result");
+            auto ec = EqualityChecker<bool> { std::get<InsertResult>(args).value };
+            return insertImpl(listener, ec, args);
+        } else {
+            auto nec = NotEqualityChecker<bool> {};
+            return insertImpl(listener, nec, args);
+        }
+    }
+
+    template <typename... Args>
+    auto insertImpl(ProbeListener<K>& listener, Consumer<bool> const& ec, std::tuple<Args...> args) -> ActualVerifier& {
+        static_assert(count<Key, Args...> > 0, "Error: insert requires a key");
+        static_assert(count<Key, Args...> < 2, "Error: insert allows no more than one key");
+        static_assert(count<Value, Args...> > 0, "Error: insert requires a value");
+        static_assert(count<Value, Args...> < 2, "Error: insert allows no more than one value");
+
+        auto const key = std::get<Key>(args).value;
+        auto const value = std::get<Value>(args).value;
+
+        // NotifyingKey<K> notifyingKey { listener, key };
+        auto notifyingKey = NotifyingKey<K> { listener, key };
+        auto const result = table.insert(notifyingKey, value);
+        listener.finalize();
+
+        ec(result);
+
         return *this;
     }
 };

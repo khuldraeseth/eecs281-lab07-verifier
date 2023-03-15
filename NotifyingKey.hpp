@@ -1,6 +1,6 @@
 #pragma once
 
-#include <iostream>
+#include <cstdint>
 #include <stdexcept>
 #include <utility>
 
@@ -8,16 +8,16 @@
 
 
 template <typename K>
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class NotifyingKey {
     K key {};
+    ProbeListener<K>* listener {};
 
-    ProbeListener<K>* listener;
-    auto notify() const -> void {
+    auto notify(NotifyingKey<K> const& other) const -> void {
         if (listener == nullptr) {
-            std::cerr << "Attempted to compare a meaningless key for equality" << std::endl;
-            throw std::runtime_error("NotifyingKey");
+            return;
         }
-        listener->notify(*this);
+        listener->notify(other);
     }
 
 public:
@@ -26,13 +26,84 @@ public:
     template <typename... Args>
     explicit NotifyingKey(ProbeListener<K>& listener, Args&&... args)
         : key(std::forward<Args>(args)...)
-        , listener { &listener } {}
+        , listener { &listener } {
+        listener.addSubscriber(*this);
+    }
+
+    NotifyingKey(NotifyingKey const& other)
+        : key { other.key }
+        , listener { other.listener } {
+        if (listener == nullptr) {
+            return;
+        }
+        listener->addSubscriber(*this);
+    }
+
+    NotifyingKey(NotifyingKey&& other) noexcept
+        : key { std::move(other.key) }
+        , listener { std::move(other.listener) } {
+        other.unsubscribe();
+
+        if (listener == nullptr) {
+            return;
+        }
+        listener->addSubscriber(*this);
+    }
+
+    auto operator=(NotifyingKey const& other) -> NotifyingKey& {
+        if (&other == this) {
+            return *this;
+        }
+
+        unsubscribe();
+
+        key = other.key;
+        listener = other.listener;
+
+        if (listener != nullptr) {
+            listener->addSubscriber(*this);
+        }
+
+        return *this;
+    }
+
+    auto operator=(NotifyingKey&& other) noexcept -> NotifyingKey& {
+        if (&other == this) {
+            return *this;
+        }
+
+        unsubscribe();
+
+        key = std::move(other.key);
+        listener = std::move(other.listener);
+
+        other.unsubscribe();
+
+        if (listener != nullptr) {
+            listener->addSubscriber(*this);
+        }
+
+        return *this;
+    }
+
+    ~NotifyingKey() { unsubscribe(); }
 
     auto operator==(NotifyingKey const& other) const -> bool {
-        notify();
-        other.notify();
+        notify(other);
+        other.notify(*this);
         return key == other.key;
     }
+
+    auto unsubscribe() -> void {
+        if (listener == nullptr) {
+            return;
+        }
+
+        listener->removeSubscriber(*this);
+        return unsafeUnsubscribe();
+    }
+
+    auto unsafeUnsubscribe() -> void { listener = nullptr; }
 
     template <typename K1, typename Hash>
     friend struct NotifyingKeyHash;
