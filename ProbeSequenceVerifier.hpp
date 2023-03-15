@@ -54,7 +54,7 @@ public:
         handleProbe(static_cast<Index>(index));
     }
 
-    auto finalize() const -> void {
+    auto finalize() const -> void override {
         if (nextProbe != probeSequence.size()) {
             std::cerr << "Probe sequence too short" << std::endl;
             throw std::runtime_error("ProbeSequenceVerifier");
