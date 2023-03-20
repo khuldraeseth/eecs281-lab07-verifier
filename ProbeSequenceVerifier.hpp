@@ -6,7 +6,7 @@
 #include <iterator>
 #include <vector>
 
-#include "../hashtable.hpp"
+#include "HashTable.hpp"
 #include "NotifyingKey.hpp"
 #include "ProbeListener.hpp"
 #include "Verifier.hpp"
