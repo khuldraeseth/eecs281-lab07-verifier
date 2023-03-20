@@ -7,8 +7,8 @@
 #include <tuple>
 #include <type_traits>
 
-#include "../hashtable.hpp"
 #include "EqualityChecker.hpp"
+#include "HashTable.hpp"
 #include "Kwargs.hpp"
 #include "NotEqualityChecker.hpp"
 #include "NotProbeSequenceVerifier.hpp"
