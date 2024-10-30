@@ -97,7 +97,7 @@ Optional parameter `probeSequence` of type `std::vector<std::size_t>`. If provid
 
 ## Caveats and limitations
 
-- This is C++17. If you want to run on CAEN, make sure you're using a somewhat recent version of `g++`. At the command line, `module unload gcc` and `module load gcc/9.4.0` should do the trick to select a suitable compiler.
+- This is C++17. If you want to run on CAEN, make sure you're using a somewhat recent version of `g++`. At the command line, `module unload gcc` and `module load gcc/11.3.0` should do the trick to select a suitable compiler.
 
 - You need to know how your hash function behaves in order to know where to begin probe sequences.
 
