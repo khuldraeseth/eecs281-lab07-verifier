@@ -57,7 +57,7 @@ $ cd /path/to/the/code/
 $ git clone git@github.com:khuldraeseth/eecs281-lab07-verifier.git verifier
 ```
 
-2. Write a program using the verifier! You can edit `hash.cpp` to server this purpose if you'd like. `#include "verifier/ActualVerifier.hpp"` to be able to use code like the example above.
+2. Write a program using the verifier! You can edit `hash.cpp` to serve this purpose if you'd like. `#include "verifier/ActualVerifier.hpp"` to be able to use code like the example above.
 
 ## How it behaves
 
